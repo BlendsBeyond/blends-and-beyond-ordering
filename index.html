@@ -30,7 +30,7 @@
 </header>
 <main class="wrap">
   <div class="topbar">
-    <input id="staffName" placeholder="Staff name / branch name" />
+    <input id="staffName" placeholder="Branch name (required)" required />
     <input id="search" placeholder="Search products..." oninput="renderProducts()" />
     <textarea id="notes" placeholder="Order notes, delivery date, or special requests"></textarea>
   </div>
@@ -566,7 +566,11 @@ function getSelected() { const selected = []; Object.entries(productGroups).forE
 function updateTotal() { const selected = getSelected(); const total = selected.reduce((sum, p) => sum + p.lineTotal, 0); document.getElementById('total').textContent = money(total); document.getElementById('itemsCount').textContent = selected.reduce((sum, p) => sum + p.qty, 0); }
 function sendWhatsApp() {
   const selected = getSelected(); if (!selected.length) { alert('Please select at least one product.'); return; }
-  const staff = document.getElementById('staffName').value.trim() || 'Not provided'; const notes = document.getElementById('notes').value.trim(); const total = selected.reduce((sum, p) => sum + p.lineTotal, 0);
+  const staff = document.getElementById('staffName').value.trim();
+  if (!staff) {
+    alert('Please enter the branch name before sending the order.');
+    return;
+  } const notes = document.getElementById('notes').value.trim(); const total = selected.reduce((sum, p) => sum + p.lineTotal, 0);
   let msg = `Blends & Beyond Order
 
 Staff/Branch: ${staff}
