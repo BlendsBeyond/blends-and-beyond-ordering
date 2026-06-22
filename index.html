@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blends & Beyond Ordering System</title>
+  <style>
+    :root { --bg:#f7f3ee; --card:#fff; --text:#26211c; --muted:#70685f; --brand:#004b34; --brand2:#013624; --gold:#f6e7b6; --accent:#d8b88a; --border:#e7ddd1; }
+    * { box-sizing: border-box; } body { margin:0; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
+    header { background:linear-gradient(135deg,var(--brand),var(--brand2)); color:white; padding:24px 18px; text-align:center; }
+    .logo { width:110px; height:110px; object-fit:contain; border-radius:50%; display:block; margin:0 auto 12px; }
+    header h1 { margin:0 0 8px; font-size:32px; } header p { margin:0; color:var(--gold); }
+    .wrap { max-width:980px; margin:0 auto; padding:18px; padding-bottom:150px; }
+    .topbar { display:grid; grid-template-columns:1fr; gap:10px; margin:18px 0; }
+    input, textarea { width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; font-size:16px; background:white; } textarea { min-height:90px; resize:vertical; }
+    .category { margin:22px 0; } .category h2 { font-size:22px; border-bottom:2px solid var(--accent); padding-bottom:8px; color:var(--brand2); }
+    .product { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin:10px 0; display:grid; grid-template-columns: 1fr 110px 110px; gap:10px; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.03); }
+    .product-name { font-weight:700; } .price { color:var(--brand); font-weight:700; text-align:right; } .qty { max-width:100px; text-align:center; }
+    .sticky { position:fixed; left:0; right:0; bottom:0; background:white; border-top:1px solid var(--border); box-shadow:0 -4px 18px rgba(0,0,0,.08); padding:14px 18px; }
+    .sticky-inner { max-width:980px; margin:0 auto; display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; } .total { font-size:22px; font-weight:800; } .small { color:var(--muted); font-size:13px; }
+    button { border:0; background:#25D366; color:white; font-weight:800; padding:14px 18px; border-radius:12px; font-size:16px; cursor:pointer; } button:hover { filter:brightness(.95); } .clear { background:var(--brand); margin-left:8px; }
+    @media(max-width:650px) { .logo { width:88px; height:88px; } header h1 { font-size:25px; } .product { grid-template-columns:1fr 80px; } .price { text-align:left; } .qty { grid-column:2; grid-row:1 / span 2; } .sticky-inner { grid-template-columns:1fr; } button { width:100%; } .clear { margin-left:0; margin-top:8px; } }
+  </style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="Blends & Beyond logo" class="logo" />
+  <h1>Blends & Beyond Ordering System</h1>
+  <p>Select quantities, check the total, then send through WhatsApp.</p>
+</header>
+<main class="wrap">
+  <div class="topbar">
+    <input id="staffName" placeholder="Staff name / branch name" />
+    <input id="search" placeholder="Search products..." oninput="renderProducts()" />
+    <textarea id="notes" placeholder="Order notes, delivery date, or special requests"></textarea>
+  </div>
+  <div id="products"></div>
+</main>
+<div class="sticky"><div class="sticky-inner"><div><div class="total">Total: <span id="total">£0.00</span></div><div class="small"><span id="itemsCount">0</span> selected item(s)</div></div><div><button onclick="sendWhatsApp()">Send Order via WhatsApp</button><button class="clear" onclick="clearOrder()">Clear</button></div></div></div>
+<script>
+const productGroups = {
+  "Sandwiches": [
+    {
+      "name": "Chicken Salad Sandwich",
+      "price": 2.0
+    },
+    {
+      "name": "Tuna Baguette",
+      "price": 2.0
+    },
+    {
+      "name": "Beyond Caprese",
+      "price": 2.0
+    },
+    {
+      "name": "Prosciutto Focaccia",
+      "price": 2.0
+    },
+    {
+      "name": "Smoked Salmon Bagel",
+      "price": 2.0
+    },
+    {
+      "name": "Garden's Blend",
+      "price": 2.0
+    }
+  ],
+  "Teas & Chai": [
+    {
+      "name": "English Breakfast Tea",
+      "price": 12.31
+    },
+    {
+      "name": "Earl Grey Tea",
+      "price": 14.65
+    },
+    {
+      "name": "Lemon & Ginger",
+      "price": 11.99
+    },
+    {
+      "name": "Peppermint Tea",
+      "price": 10.99
+    },
+    {
+      "name": "Chamomile Tea",
+      "price": 12.94
+    },
+    {
+      "name": "Super Fruit Tea",
+      "price": 13.44
+    },
+    {
+      "name": "Green Tea",
+      "price": 14.67
+    },
+    {
+      "name": "Chai Latte",
+      "price": 10.6
+    }
+  ],
+  "Syrups": [
+    {
+      "name": "Caramel Syrup",
+      "price": 8.4
+    },
+    {
+      "name": "Hazelnut Sugar Free Syrup",
+      "price": 8.8
+    },
+    {
+      "name": "Vanilla Syrup",
+      "price": 5.99
+    },
+    {
+      "name": "Blueberry Syrup",
+      "price": 9.3
+    },
+    {
+      "name": "Strawberry Syrup",
+      "price": 9.3
+    }
+  ],
+  "Cookies & Biscuits": [
+    {
+      "name": "Pistachio Cookie",
+      "price": 1.4
+    },
+    {
+      "name": "Nutella Cookie",
+      "price": 1.4
+    },
+    {
+      "name": "Biscoff Cookie",
+      "price": 1.4
+    },
+    {
+      "name": "Petit Four Chocolate Box",
+      "price": 23.8
+    }
+  ],
+  "Muffins": [
+    {
+      "name": "Blueberry Muffin",
+      "price": 1.1
+    },
+    {
+      "name": "Chocolate Muffin",
+      "price": 1.2
+    },
+    {
+      "name": "Vegan Very Berry Muffin",
+      "price": 1.1
+    },
+    {
+      "name": "Lemon Drizzle Muffin",
+      "price": 1.05
+    }
+  ],
+  "Cakes, Desserts & More": [
+    {
+      "name": "Fruit Scones Box",
+      "price": 18.5
+    },
+    {
+      "name": "Chocolate Brownie",
+      "price": 1.3
+    },
+    {
+      "name": "Carrot Cake Whole Cake 12Pcs",
+      "price": 18.0
+    },
+    {
+      "name": "Baked Cheesecake Whole 8 Pcs",
+      "price": 11.5
+    },
+    {
+      "name": "Banana Bread",
+      "price": 14.5
+    },
+    {
+      "name": "Mandarin & Chocolate GF Loaf",
+      "price": 19.0
+    }
+  ],
+  "Pastries": [
+    {
+      "name": "Spinach & Feta Pie",
+      "price": 1.2
+    },
+    {
+      "name": "Vegan Potato Pie",
+      "price": 0.95
+    },
+    {
+      "name": "All-Butter Croissant",
+      "price": 0.48
+    },
+    {
+      "name": "Raspberry Croissant",
+      "price": 0.7
+    },
+    {
+      "name": "Almond Croissant",
+      "price": 0.94
+    },
+    {
+      "name": "Pain au Chocolat",
+      "price": 0.55
+    }
+  ],
+  "Milk & Apple Juice UHT": [
+    {
+      "name": "Brades Farm Barista Whole Milk",
+      "price": 2.3
+    },
+    {
+      "name": "Fresh Skimmed Milk",
+      "price": 1.4
+    },
+    {
+      "name": "Moma Barista Oat Milk 12x1LT",
+      "price": 18.51
+    },
+    {
+      "name": "Alpro Coconut Milk",
+      "price": 22.03
+    },
+    {
+      "name": "Alpro Almond Milk",
+      "price": 22.56
+    },
+    {
+      "name": "Alpro Soya Milk",
+      "price": 17.39
+    },
+    {
+      "name": "Apple Juice UHT for Smoothies",
+      "price": 12.93
+    }
+  ],
+  "Kitchen Essentials": [
+    {
+      "name": "Avocado",
+      "price": 1.25
+    },
+    {
+      "name": "Baby Leaf Salad",
+      "price": 3.0
+    },
+    {
+      "name": "Butter Portions",
+      "price": 6.45
+    },
+    {
+      "name": "Balsamic Glaze",
+      "price": 7.99
+    },
+    {
+      "name": "Smoked Salmon 1KG",
+      "price": 22.49
+    },
+    {
+      "name": "Rowse Honey 1.36KG",
+      "price": 6.0
+    },
+    {
+      "name": "Greek Yogurt",
+      "price": 3.0
+    },
+    {
+      "name": "Pickled Red Cabbage",
+      "price": 6.49
+    },
+    {
+      "name": "Chives",
+      "price": 3.49
+    },
+    {
+      "name": "Chilli Flakes",
+      "price": 6.0
+    },
+    {
+      "name": "Granola 1KG",
+      "price": 9.0
+    },
+    {
+      "name": "Strawberry Jam Portions",
+      "price": 10.99
+    },
+    {
+      "name": "Olive Pomace Oil 5Lt",
+      "price": 17.3
+    },
+    {
+      "name": "Distilled White Vinegar",
+      "price": 3.79
+    },
+    {
+      "name": "Sourdough Bread For Toast",
+      "price": 3.89
+    },
+    {
+      "name": "Gluten Free Bread",
+      "price": 3.99
+    }
+  ],
+  "Drinks & Smoothies": [
+    {
+      "name": "San Pelegrino 250ml",
+      "price": 17.99
+    },
+    {
+      "name": "Harrogate Still Water",
+      "price": 17.99
+    },
+    {
+      "name": "Coca Cola Original Can 330ml",
+      "price": 16.15
+    },
+    {
+      "name": "Coca Cola Zero",
+      "price": 13.15
+    },
+    {
+      "name": "San Pelegrino Limonata",
+      "price": 15.45
+    },
+    {
+      "name": "San Pelegrino Ariancata",
+      "price": 15.45
+    },
+    {
+      "name": "Frobishers Apple Juice",
+      "price": 16.8
+    },
+    {
+      "name": "Frobishers Orange Juice",
+      "price": 16.8
+    },
+    {
+      "name": "Melon Refresher",
+      "price": 1.25
+    },
+    {
+      "name": "Avo-Go-Go",
+      "price": 1.25
+    },
+    {
+      "name": "Cherry Poppins",
+      "price": 1.25
+    },
+    {
+      "name": "Pash n' Shoot",
+      "price": 1.25
+    }
+  ],
+  "Crisps, Chocolates & More": [
+    {
+      "name": "Tyrels Salt & Vinegar Box",
+      "price": 37.25
+    },
+    {
+      "name": "Tyrels Sea Salted Crisps",
+      "price": 37.25
+    },
+    {
+      "name": "Tyrels Chilli & Red Pepper Crisps",
+      "price": 37.25
+    },
+    {
+      "name": "Bear YoYo",
+      "price": 8.4
+    },
+    {
+      "name": "Eat Real Kids Veggie Straws",
+      "price": 13.6
+    },
+    {
+      "name": "Cadbury Dairy Milk 45gr Box",
+      "price": 35.0
+    },
+    {
+      "name": "Twix Chocolate 50gr",
+      "price": 24.0
+    }
+  ],
+  "Packaging": [
+    {
+      "name": "12 OZ Paper Cups",
+      "price": 42.0
+    },
+    {
+      "name": "12 OZ Lids",
+      "price": 27.6
+    },
+    {
+      "name": "12OZ Freddo/IcedLatte Lids",
+      "price": 22.8
+    },
+    {
+      "name": "8OZ Paper Cups",
+      "price": 38.4
+    },
+    {
+      "name": "8oz Lids",
+      "price": 24.0
+    },
+    {
+      "name": "Paper Straws",
+      "price": 5.99
+    },
+    {
+      "name": "Smoothie Straws",
+      "price": 3.6
+    },
+    {
+      "name": "12Oz Plastic Smoothie Cups",
+      "price": 54.0
+    },
+    {
+      "name": "12oz Plastic Smoothie Lids",
+      "price": 29.99
+    },
+    {
+      "name": "Pastry Bags 8.5'x8.5'",
+      "price": 14.4
+    },
+    {
+      "name": "Pastry Bags 7'x7'",
+      "price": 12.0
+    },
+    {
+      "name": "Baguette Bags",
+      "price": 22.8
+    },
+    {
+      "name": "Napkins",
+      "price": 32.4
+    },
+    {
+      "name": "Takeaway Tissue",
+      "price": 20.4
+    },
+    {
+      "name": "Gloves Large",
+      "price": 7.2
+    },
+    {
+      "name": "Gloves Medium",
+      "price": 7.2
+    },
+    {
+      "name": "White Sugar Sachets",
+      "price": 7.8
+    },
+    {
+      "name": "Brown Sugar Sachets",
+      "price": 7.8
+    },
+    {
+      "name": "Wooden Stirrers",
+      "price": 4.8
+    },
+    {
+      "name": "Espresso 4oz Cups",
+      "price": 29.99
+    },
+    {
+      "name": "Small Brown Bags With Handles",
+      "price": 12.0
+    },
+    {
+      "name": "Medium Brown Bags With Handles",
+      "price": 14.4
+    },
+    {
+      "name": "Small White Cake Boxes",
+      "price": 24.0
+    },
+    {
+      "name": "Flash Floor Cleaner",
+      "price": 10.8
+    },
+    {
+      "name": "Washing Up Liquid",
+      "price": 7.2
+    },
+    {
+      "name": "Rinse Aid",
+      "price": 6.0
+    },
+    {
+      "name": "Dishwasher Detergent",
+      "price": 7.2
+    },
+    {
+      "name": "Toilet Hand Towels",
+      "price": 36.0
+    },
+    {
+      "name": "Toilet Roll Katrin Plus Mini",
+      "price": 21.6
+    },
+    {
+      "name": "Antibacterial Fast Frying Spray Box",
+      "price": 16.8
+    },
+    {
+      "name": "Window/Glass Cleaner Spray Box",
+      "price": 16.8
+    },
+    {
+      "name": "Toilet Hand Wash 5kg",
+      "price": 6.0
+    },
+    {
+      "name": "Black Refuse Heavy Duty Bags",
+      "price": 19.2
+    },
+    {
+      "name": "Blue Roll 1 Roll",
+      "price": 2.2
+    },
+    {
+      "name": "Sponges Pack 6",
+      "price": 0.99
+    },
+    {
+      "name": "Cling Film",
+      "price": 8.39
+    },
+    {
+      "name": "Parchment Paper",
+      "price": 7.2
+    },
+    {
+      "name": "Plastic Forks",
+      "price": 3.6
+    },
+    {
+      "name": "Big D Oven Cleaner Pack Size 6 Box",
+      "price": 18.0
+    }
+  ]
+};
+let quantities = {};
+function money(n) { return '£' + Number(n).toFixed(2); }
+function idFor(cat, name) { return (cat + '|' + name).replace(/[^a-zA-Z0-9]/g, '_'); }
+function renderProducts() {
+  const container = document.getElementById('products'); const search = document.getElementById('search').value.toLowerCase(); container.innerHTML = '';
+  Object.entries(productGroups).forEach(([category, items]) => {
+    const filtered = items.filter(p => (p.name + ' ' + category).toLowerCase().includes(search)); if (!filtered.length) return;
+    const section = document.createElement('section'); section.className = 'category'; section.innerHTML = `<h2>${category}</h2>`;
+    filtered.forEach(p => {
+      const id = idFor(category, p.name); const row = document.createElement('div'); row.className = 'product';
+      row.innerHTML = `<div class="product-name">${p.name}</div><div class="price">${money(p.price)}</div><input class="qty" type="number" min="0" inputmode="numeric" value="${quantities[id] || ''}" placeholder="Qty">`;
+      row.querySelector('.qty').addEventListener('input', function () { quantities[id] = Math.max(0, parseInt(this.value || 0)); updateTotal(); });
+      section.appendChild(row);
+    });
+    container.appendChild(section);
+  });
+  updateTotal();
+}
+function getSelected() { const selected = []; Object.entries(productGroups).forEach(([category, items]) => { items.forEach(p => { const id = idFor(category, p.name); const qty = quantities[id] || 0; if (qty > 0) selected.push({ category, name:p.name, price:p.price, qty, lineTotal:qty*p.price }); }); }); return selected; }
+function updateTotal() { const selected = getSelected(); const total = selected.reduce((sum, p) => sum + p.lineTotal, 0); document.getElementById('total').textContent = money(total); document.getElementById('itemsCount').textContent = selected.reduce((sum, p) => sum + p.qty, 0); }
+function sendWhatsApp() {
+  const selected = getSelected(); if (!selected.length) { alert('Please select at least one product.'); return; }
+  const staff = document.getElementById('staffName').value.trim() || 'Not provided'; const notes = document.getElementById('notes').value.trim(); const total = selected.reduce((sum, p) => sum + p.lineTotal, 0);
+  let msg = `Blends & Beyond Order
+
+Staff/Branch: ${staff}
+`; let currentCat = '';
+  selected.forEach(p => { if (p.category !== currentCat) { currentCat = p.category; msg += `
+${currentCat}
+`; } msg += `- ${p.name} x ${p.qty} @ ${money(p.price)} = ${money(p.lineTotal)}
+`; });
+  msg += `
+TOTAL: ${money(total)}`; if (notes) msg += `
+
+Notes: ${notes}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+function clearOrder() { if(confirm('Clear the order?')) { quantities = {}; document.querySelectorAll('.qty').forEach(i => i.value = ''); updateTotal(); } }
+renderProducts();
+</script>
+</body>
+</html>
